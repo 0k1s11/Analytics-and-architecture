@@ -44,7 +44,8 @@ status-history — фиксация и хранение истории изме�
 
 1. C4 Context
 
-```flowchart LR
+```mermaid
+flowchart LR
 
 Customer[Заказчик]
 
@@ -74,7 +75,7 @@ Executor -->|Создание и выполнение работ, загрузк
 
 2. C4 Container
 
-```
+```mermaid
 
 flowchart LR
 
@@ -135,7 +136,7 @@ Backend отвечает за проверку доступа к данным и
 
 3. Backend Component
 
-```
+```mermaid
 
 flowchart TB
 
