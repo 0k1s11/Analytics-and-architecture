@@ -82,6 +82,7 @@ ON_REVIEW → REWORK → IN_PROGRESS → ON_REVIEW
 вернуть на доработку → REWORK.
 
 То есть ON_REVIEW — это точка принятия решения, а не промежуточный статус, который автоматически ведёт в REWORK.
+
 ```mermaid
 
 flowchart LR
