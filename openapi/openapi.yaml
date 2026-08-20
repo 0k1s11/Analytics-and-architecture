@@ -1,0 +1,1415 @@
+openapi: 3.1.0
+
+info:
+  title: Repair Management API
+  version: 1.0.0
+  description: API системы управления объектами ремонта и карточками работ.
+
+servers:
+  - url: http://localhost:8080
+    description: Локальный сервер
+
+tags:
+  - name: Auth
+  - name: Users
+  - name: Objects
+  - name: Members
+  - name: WorkCards
+  - name: Comments
+  - name: Submissions
+  - name: StatusHistory
+
+paths:
+
+  # ==================== AUTH ====================
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Вход в систему
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Успешная авторизация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ==================== USERS ====================
+
+  /api/users/me:
+    get:
+      tags: [Users]
+      summary: Получить информацию о текущем пользователе
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Данные текущего пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/users/{userId}:
+    get:
+      tags: [Users]
+      summary: Получить информацию о пользователе
+      operationId: getUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          description: Уникальный идентификатор пользователя
+      responses:
+        '200':
+          description: Данные пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /api/users:
+    get:
+      tags: [Users]
+      summary: Получить список всех пользователей
+      operationId: getUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: query
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Поиск по имени или email
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Список пользователей
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedUserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ==================== OBJECTS ====================
+
+  /api/objects:
+    get:
+      tags: [Objects]
+      summary: Получить список объектов
+      operationId: getObjects
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: role
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [CUSTOMER, EXECUTOR]
+          description: Фильтр по роли пользователя в объекте
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Список объектов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedObjectResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Objects]
+      summary: Создать объект ремонта
+      operationId: createObject
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateObjectRequest'
+      responses:
+        '201':
+          description: Объект создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObjectResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/objects/{objectId}:
+    get:
+      tags: [Objects]
+      summary: Получить объект ремонта
+      operationId: getObject
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+      responses:
+        '200':
+          description: Данные объекта
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObjectDetailsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ==================== MEMBERS ====================
+
+  /api/objects/{objectId}/members:
+    get:
+      tags: [Members]
+      summary: Получить участников объекта
+      operationId: getObjectMembers
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+      responses:
+        '200':
+          description: Список участников
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MemberResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags: [Members]
+      summary: Добавить исполнителя к объекту
+      operationId: addObjectMember
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddMemberRequest'
+      responses:
+        '201':
+          description: Исполнитель добавлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  # ==================== WORK CARDS ====================
+
+  /api/objects/{objectId}/work-cards:
+    get:
+      tags: [WorkCards]
+      summary: Получить все карточки работ объекта
+      operationId: getObjectWorkCards
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+      responses:
+        '200':
+          description: Список карточек работ
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkCardResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags: [WorkCards]
+      summary: Создать карточку работы
+      operationId: createWorkCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ObjectId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWorkCardRequest'
+      responses:
+        '201':
+          description: Карточка создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkCardResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/work-cards/{id}:
+    get:
+      tags: [WorkCards]
+      summary: Получить карточку работы
+      operationId: getWorkCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WorkCardId'
+      responses:
+        '200':
+          description: Карточка работы
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkCardDetailsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [WorkCards]
+      summary: Изменить карточку работы (только в статусе PLANNED)
+      operationId: updateWorkCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WorkCardId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateWorkCardRequest'
+      responses:
+        '200':
+          description: Карточка обновлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkCardResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # ==================== STATUS TRANSITIONS ====================
+
+  /api/work-cards/{id}/transitions:
+    post:
+      tags: [WorkCards]
+      summary: Изменить статус карточки работы
+      operationId: transitionWorkCard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WorkCardId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransitionRequest'
+      responses:
+        '200':
+          description: Статус успешно изменён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkCardResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Недопустимый переход статуса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== SUBMISSIONS ====================
+
+  /api/work-cards/{id}/submissions:
+    post:
+      tags: [Submissions]
+      summary: Отправить результат на проверку
+      operationId: createSubmission
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WorkCardId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - files
+              properties:
+                files:
+                  type: array
+                  minItems: 1
+                  maxItems: 10
+                  items:
+                    type: string
+                    format: binary
+                video:
+                  type: string
+                  format: binary
+                  description: Опциональное видео (1 файл, MP4/WebM, до 50 МБ)
+      responses:
+        '201':
+          description: Результат отправлен, карточка переведена в ON_REVIEW
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmissionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '415':
+          $ref: '#/components/responses/UnsupportedMediaType'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # ==================== COMMENTS ====================
+
+  /api/work-cards/{id}/comments:
+    get:
+      tags: [Comments]
+      summary: Получить комментарии карточки
+      operationId: getComments
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WorkCardId'
+      responses:
+        '200':
+          description: Список комментариев
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CommentResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags: [Comments]
+      summary: Добавить комментарий к карточке
+      operationId: createComment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WorkCardId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCommentRequest'
+      responses:
+        '201':
+          description: Комментарий создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CommentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  # ==================== STATUS HISTORY ====================
+
+  /api/work-cards/{id}/status-history:
+    get:
+      tags: [StatusHistory]
+      summary: Получить историю изменения статусов
+      operationId: getStatusHistory
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/WorkCardId'
+      responses:
+        '200':
+          description: История статусов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StatusHistoryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+
+  responses:
+
+    BadRequest:
+      description: Некорректный запрос
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Требуется авторизация
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Forbidden:
+      description: Недостаточно прав
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Ресурс не найден
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Conflict:
+      description: Конфликт данных или недопустимое состояние ресурса
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    ValidationError:
+      description: Ошибка валидации
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    PayloadTooLarge:
+      description: Размер загружаемого файла или запроса превышает допустимый
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    UnsupportedMediaType:
+      description: Неподдерживаемый тип медиафайла
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+
+    ObjectId:
+      name: objectId
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+      examples:
+        default:
+          value: 1
+
+    WorkCardId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+      examples:
+        default:
+          value: 10
+
+  schemas:
+
+    # ================================================================
+    # 1. USER
+    # Соответствует таблице User в словаре данных
+    # ================================================================
+
+    UserResponse:
+      type: object
+      required: [id, name, email]
+      properties:
+        id:
+          type: integer
+          format: int64
+          examples:
+            - 1
+          description: Уникальный идентификатор пользователя
+        name:
+          type: string
+          examples:
+            - Иван Иванов
+          description: Имя пользователя (длина от 1 до 100)
+        email:
+          type: string
+          format: email
+          examples:
+            - ivan@example.com
+          description: Email пользователя (уникальный)
+
+    PagedUserResponse:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserResponse'
+        page:
+          type: integer
+          minimum: 0
+          examples:
+            - 0
+        size:
+          type: integer
+          minimum: 1
+          examples:
+            - 20
+        totalElements:
+          type: integer
+          minimum: 0
+          examples:
+            - 10
+        totalPages:
+          type: integer
+          minimum: 0
+          examples:
+            - 1
+
+    # ================================================================
+    # 2. AUTH
+    # ================================================================
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          examples:
+            - ivan@example.com
+        password:
+          type: string
+          minLength: 1
+          examples:
+            - password123
+
+    LoginResponse:
+      type: object
+      required: [accessToken, tokenType]
+      properties:
+        accessToken:
+          type: string
+          examples:
+            - eyJhbGciOiJIUzI1NiJ9...
+        tokenType:
+          type: string
+          examples:
+            - Bearer
+
+    # ================================================================
+    # 3. OBJECT
+    # Соответствует таблице Object в словаре данных
+    # ================================================================
+
+    CreateObjectRequest:
+      type: object
+      required:
+        - name
+        - address
+        - description
+        - planned_start_date
+        - planned_end_date
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          examples:
+            - Ремонт квартиры на Ленина
+        address:
+          type: string
+          minLength: 1
+          maxLength: 500
+          examples:
+            - г. Москва, ул. Ленина, д. 5, кв. 12
+        description:
+          type: string
+          minLength: 1
+          examples:
+            - Косметический ремонт двухкомнатной квартиры
+        planned_start_date:
+          type: string
+          format: date
+          examples:
+            - '2026-09-01'
+        planned_end_date:
+          type: string
+          format: date
+          examples:
+            - '2026-12-01'
+
+    ObjectResponse:
+      type: object
+      required: [id, name, address, role]
+      properties:
+        id:
+          type: integer
+          format: int64
+          examples:
+            - 1
+          description: Уникальный идентификатор объекта
+        name:
+          type: string
+          examples:
+            - Ремонт квартиры на Ленина
+        address:
+          type: string
+          examples:
+            - г. Москва, ул. Ленина, д. 5, кв. 12
+        role:
+          type: string
+          enum: [CUSTOMER, EXECUTOR]
+          description: |
+            Роль текущего пользователя в объекте:
+            - CUSTOMER — Заказчик
+            - EXECUTOR — Исполнитель
+          examples:
+            - CUSTOMER
+
+    ObjectDetailsResponse:
+      allOf:
+        - $ref: '#/components/schemas/ObjectResponse'
+        - type: object
+          required:
+            - description
+            - planned_start_date
+            - planned_end_date
+            - total_cost
+            - awaiting_payment
+            - paid
+          properties:
+            description:
+              type: string
+              examples:
+                - Косметический ремонт двухкомнатной квартиры
+            planned_start_date:
+              type: string
+              format: date
+              examples:
+                - '2026-09-01'
+            planned_end_date:
+              type: string
+              format: date
+              examples:
+                - '2026-12-01'
+            total_cost:
+              type: number
+              format: double
+              minimum: 0
+              examples:
+                - 150000.00
+              description: |
+                Общая стоимость всех карточек работ объекта.
+                Рассчитывается по формуле: SUM(WorkCard.price)
+            awaiting_payment:
+              type: number
+              format: double
+              minimum: 0
+              examples:
+                - 85000.00
+              description: |
+                Сумма карточек в статусе AWAITING_PAYMENT.
+                Рассчитывается по формуле: SUM(WorkCard.price WHERE status = AWAITING_PAYMENT)
+            paid:
+              type: number
+              format: double
+              minimum: 0
+              examples:
+                - 65000.00
+              description: |
+                Сумма карточек в статусе PAID.
+                Рассчитывается по формуле: SUM(WorkCard.price WHERE status = PAID)
+            created_at:
+              type: string
+              format: date-time
+              examples:
+                - '2026-08-20T12:00:00Z'
+              description: Дата и время создания объекта
+
+    PagedObjectResponse:
+      type: object
+      required: [content, page, size, totalElements, totalPages]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ObjectResponse'
+        page:
+          type: integer
+          minimum: 0
+          examples:
+            - 0
+        size:
+          type: integer
+          minimum: 1
+          examples:
+            - 20
+        totalElements:
+          type: integer
+          minimum: 0
+          examples:
+            - 5
+        totalPages:
+          type: integer
+          minimum: 0
+          examples:
+            - 1
+
+    # ================================================================
+    # 4. OBJECT MEMBER
+    # Соответствует таблице ObjectMember в словаре данных
+    # ================================================================
+
+    AddMemberRequest:
+      type: object
+      required: [user_id]
+      properties:
+        user_id:
+          type: integer
+          format: int64
+          minimum: 1
+          examples:
+            - 5
+          description: ID пользователя, добавляемого в качестве исполнителя
+
+    MemberResponse:
+      type: object
+      required: [id, object_id, user_id, name, email, role, created_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+          examples:
+            - 2
+          description: Уникальный идентификатор записи участия (ObjectMember.id)
+        object_id:
+          type: integer
+          format: int64
+          examples:
+            - 1
+          description: ID объекта, к которому добавлен участник
+        user_id:
+          type: integer
+          format: int64
+          examples:
+            - 5
+          description: ID пользователя
+        name:
+          type: string
+          examples:
+            - Пётр Петров
+          description: Имя пользователя
+        email:
+          type: string
+          format: email
+          examples:
+            - petr@example.com
+          description: Email пользователя
+        role:
+          type: string
+          enum: [CUSTOMER, EXECUTOR]
+          examples:
+            - EXECUTOR
+          description: Роль участника в объекте
+        created_at:
+          type: string
+          format: date-time
+          examples:
+            - '2026-08-20T12:00:00Z'
+          description: Дата добавления участника
+
+    # ================================================================
+    # 5. WORK CARD (WorkCard)
+    # Соответствует таблице WorkCard в словаре данных
+    # ================================================================
+
+    WorkCardStatus:
+      type: string
+      enum:
+        - PLANNED          # Запланирована
+        - IN_PROGRESS      # В работе
+        - ON_REVIEW        # На проверке
+        - REWORK           # На доработке
+        - AWAITING_PAYMENT # Ожидает оплаты
+        - PAID             # Оплачена
+      description: Статус карточки работы
+
+    CreateWorkCardRequest:
+      type: object
+      required: [title, description, price, deadline]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          examples:
+            - Укладка плитки в ванной
+        description:
+          type: string
+          minLength: 1
+          examples:
+            - Укладка керамической плитки на пол и стены ванной комнаты
+        price:
+          type: number
+          minimum: 0
+          multipleOf: 0.01
+          examples:
+            - 45000.00
+          description: Стоимость работы в рублях (DECIMAL(12,2))
+        deadline:
+          type: string
+          format: date
+          examples:
+            - '2026-09-15'
+
+    UpdateWorkCardRequest:
+      type: object
+      minProperties: 1
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          minLength: 1
+        price:
+          type: number
+          minimum: 0
+          multipleOf: 0.01
+        deadline:
+          type: string
+          format: date
+
+    WorkCardResponse:
+      type: object
+      required:
+        - id
+        - object_id
+        - assigned_executor_id
+        - title
+        - description
+        - price
+        - deadline
+        - status
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          format: int64
+          examples:
+            - 10
+          description: Уникальный идентификатор карточки (WorkCard.id)
+        object_id:
+          type: integer
+          format: int64
+          examples:
+            - 1
+          description: ID объекта, к которому относится карточка
+        assigned_executor_id:
+          type: integer
+          format: int64
+          examples:
+            - 5
+          description: |
+            Назначенный исполнитель (автор карточки).
+            Заполняется автоматически при создании
+        title:
+          type: string
+          examples:
+            - Укладка плитки в ванной
+          description: Название работы (блокируется после IN_PROGRESS)
+        description:
+          type: string
+          examples:
+            - Укладка керамической плитки на пол и стены ванной комнаты
+          description: Описание работы (блокируется после IN_PROGRESS)
+        price:
+          type: number
+          minimum: 0
+          multipleOf: 0.01
+          examples:
+            - 45000.00
+          description: Стоимость работы (блокируется после IN_PROGRESS)
+        deadline:
+          type: string
+          format: date
+          examples:
+            - '2026-09-15'
+          description: Срок выполнения (блокируется после IN_PROGRESS)
+        status:
+          $ref: '#/components/schemas/WorkCardStatus'
+          examples:
+            - IN_PROGRESS
+        created_at:
+          type: string
+          format: date-time
+          examples:
+            - '2026-08-20T12:00:00Z'
+          description: Дата создания карточки
+        updated_at:
+          type: string
+          format: date-time
+          examples:
+            - '2026-08-20T14:00:00Z'
+          description: Дата последнего обновления
+
+    WorkCardDetailsResponse:
+      allOf:
+        - $ref: '#/components/schemas/WorkCardResponse'
+        - type: object
+          properties:
+            submissions:
+              type: array
+              items:
+                $ref: '#/components/schemas/SubmissionResponse'
+              description: История подач результата
+            comments:
+              type: array
+              items:
+                $ref: '#/components/schemas/CommentResponse'
+              description: Комментарии к карточке
+            status_history:
+              type: array
+              items:
+                $ref: '#/components/schemas/StatusHistoryResponse'
+              description: История изменения статусов
+
+    # ================================================================
+    # 6. TRANSITIONS
+    # Изменение статуса WorkCard
+    # ================================================================
+
+    TransitionRequest:
+      type: object
+      required: [target_status]
+      properties:
+        target_status:
+          type: string
+          enum:
+            - IN_PROGRESS
+            - REWORK
+            - AWAITING_PAYMENT
+            - PAID
+          examples:
+            - REWORK
+          description: Целевой статус для перехода
+        comment:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: |
+            Обязателен при переходе в REWORK.
+            Причина возврата на доработку
+          examples:
+            - Плитка уложена неровно, швы неодинаковые
+
+    # ================================================================
+    # 7. WORK SUBMISSION
+    # Соответствует таблице WorkSubmission в словаре данных
+    # ================================================================
+
+    SubmissionResponse:
+      type: object
+      required: [id, work_card_id, submitted_by, submitted_at, media]
+      properties:
+        id:
+          type: integer
+          format: int64
+          examples:
+            - 15
+          description: Уникальный идентификатор подачи (WorkSubmission.id)
+        work_card_id:
+          type: integer
+          format: int64
+          examples:
+            - 10
+          description: ID карточки, к которой относится подача
+        submitted_by:
+          type: integer
+          format: int64
+          examples:
+            - 5
+          description: ID исполнителя, отправившего результат
+        submitted_at:
+          type: string
+          format: date-time
+          examples:
+            - '2026-08-25T15:00:00Z'
+          description: Время подачи результата
+        media:
+          type: array
+          minItems: 1
+          maxItems: 11
+          items:
+            $ref: '#/components/schemas/MediaResponse'
+          description: Прикреплённые медиафайлы
+
+    # ================================================================
+    # 8. MEDIA ATTACHMENT
+    # Соответствует таблице MediaAttachment в словаре данных
+    # ================================================================
+
+    MediaResponse:
+      type: object
+      required:
+        - id
+        - submission_id
+        - file_name
+        - file_path
+        - mime_type
+        - file_size
+        - created_at
+      properties:
+        id:
+          type: integer
+          format: int64
+          examples:
+            - 1
+          description: Уникальный идентификатор файла (MediaAttachment.id)
+        submission_id:
+          type: integer
+          format: int64
+          examples:
+            - 15
+          description: ID подачи, к которой относится файл
+        file_name:
+          type: string
+          examples:
+            - result.jpg
+          description: Исходное имя файла
+        file_path:
+          type: string
+          examples:
+            - /uploads/1/result.jpg
+          description: Путь к файлу в локальном хранилище
+        mime_type:
+          type: string
+          examples:
+            - image/jpeg
+          description: MIME-тип файла
+        file_size:
+          type: integer
+          format: int64
+          examples:
+            - 2048576
+          description: Размер файла в байтах
+        created_at:
+          type: string
+          format: date-time
+          examples:
+            - '2026-08-25T15:00:00Z'
+          description: Время загрузки файла
+
+    # ================================================================
+    # 9. CARD COMMENT
+    # Соответствует таблице CardComment в словаре данных
+    # ================================================================
+
+    CreateCommentRequest:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          examples:
+            - Плитка уложена неровно, швы неодинаковые
+
+    CommentResponse:
+      type: object
+      required: [id, work_card_id, author_id, author_name, content, created_at]
+      properties:
+        id:
+          type: integer
+          format: int64
+          examples:
+            - 1
+          description: Уникальный идентификатор комментария (CardComment.id)
+        work_card_id:
+          type: integer
+          format: int64
+          examples:
+            - 10
+          description: ID карточки, к которой относится комментарий
+        author_id:
+          type: integer
+          format: int64
+          examples:
+            - 5
+          description: ID автора комментария
+        author_name:
+          type: string
+          examples:
+            - Пётр Петров
+          description: Имя автора комментария
+        content:
+          type: string
+          examples:
+            - Плитка уложена неровно, швы неодинаковые
+          description: Текст комментария
+        created_at:
+          type: string
+          format: date-time
+          examples:
+            - '2026-08-25T15:00:00Z'
+          description: Дата и время создания комментария
+
+    # ================================================================
+    # 10. STATUS EVENT
+    # Соответствует таблице StatusEvent в словаре данных
+    # ================================================================
+
+    StatusHistoryResponse:
+      type: object
+      required:
+        - id
+        - work_card_id
+        - changed_by
+        - changed_by_name
+        - old_status
+        - new_status
+        - created_at
+      properties:
+        id:
+          type: integer
+          format: int64
+          examples:
+            - 20
+          description: Уникальный идентификатор записи истории (StatusEvent.id)
+        work_card_id:
+          type: integer
+          format: int64
+          examples:
+            - 10
+          description: ID карточки, к которой относится запись
+        changed_by:
+          type: integer
+          format: int64
+          examples:
+            - 5
+          description: ID пользователя, изменившего статус
+        changed_by_name:
+          type: string
+          examples:
+            - Пётр Петров
+          description: Имя пользователя, изменившего статус
+        old_status:
+          $ref: '#/components/schemas/WorkCardStatus'
+          examples:
+            - IN_PROGRESS
+          description: Предыдущий статус
+        new_status:
+          $ref: '#/components/schemas/WorkCardStatus'
+          examples:
+            - REWORK
+          description: Новый статус
+        comment:
+          type: [string, 'null']
+          examples:
+            - Плитка уложена неровно, швы неодинаковые
+          description: |
+            Комментарий при переходе.
+            Обязателен при new_status = REWORK
+        created_at:
+          type: string
+          format: date-time
+          examples:
+            - '2026-08-25T15:00:00Z'
+          description: Дата и время изменения статуса
+
+    # ================================================================
+    # 11. ERRORS
+    # ================================================================
+
+    ErrorResponse:
+      type: object
+      required: [code, message, details, traceId]
+      properties:
+        code:
+          type: string
+          description: Машиночитаемый код ошибки
+          examples:
+            - INVALID_STATUS_TRANSITION
+        message:
+          type: string
+          description: Описание ошибки
+          examples:
+            - Недопустимый переход статуса
+        details:
+          type: object
+          description: Дополнительные сведения об ошибке
+          additionalProperties: true
+          examples:
+            - {}
+        traceId:
+          type: string
+          description: Идентификатор запроса для трассировки ошибки
+          examples:
+            - 7f3a2c1e9b4d
